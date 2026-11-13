@@ -1,0 +1,124 @@
+"description": args.description or "",
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "completed": False,
+    }
+    tasks.append(task)
+    save_tasks(tasks)
+    print(f"Task #{task['id']} added: {task['title']}")
+
+
+def list_tasks(args):
+    tasks = load_tasks()
+    if args.status == "pending":
+        tasks = [task for task in tasks if not task.get("completed", False)]
+    elif args.status == "completed":
+        tasks = [task for task in tasks if task.get("completed", False)]
+
+    if not tasks:
+        print("No tasks found.")
+        return
+
+    print(f"\n{'ID':<5} {'Status':<12} {'Task'}")
+    print("-" * 55)
+    for task in tasks:
+        status = "Completed" if task.get("completed", False) else "Pending"
+        print(f"{task['id']:<5} {status:<12} {task['title']}")
+        if task.get("description"):
+            print(f"      Description: {task['description']}")
+    print()
+
+
+def complete_task(args):
+    tasks = load_tasks()
+    task = find_task(tasks, args.task_id)
+    if task is None:
+        print(f"Task #{args.task_id} was not found.")
+        return
+
+    task["completed"] = True
+    task["completed_at"] = datetime.now().isoformat(timespec="seconds")
+    save_tasks(tasks)
+    print(f"Task #{args.task_id} marked as completed.")
+
+
+def edit_task(args):
+    tasks = load_tasks()
+    task = find_task(tasks, args.task_id)
+    if task is None:
+        print(f"Task #{args.task_id} was not found.")
+        return
+
+    if args.title is not None:
+        if not args.title.strip():
+            print("The task title cannot be empty.")
+            return
+        task["title"] = args.title.strip()
+
+    if args.description is not None:
+        task["description"] = args.description
+
+    save_tasks(tasks)
+    print(f"Task #{args.task_id} updated.")
+
+
+def delete_task(args):
+    tasks = load_tasks()
+    task = find_task(tasks, args.task_id)
+    if task is None:
+        print(f"Task #{args.task_id} was not found.")
+        return
+
+    tasks.remove(task)
+    save_tasks(tasks)
+    print(f"Task #{args.task_id} deleted.")
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Manage your tasks from the command line."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    add_parser = subparsers.add_parser("add", help="Add a new task")
+    add_parser.add_argument("title", help="Short task title")
+    add_parser.add_argument(
+        "-d", "--description", default="", help="Optional task description"
+    )
+    add_parser.set_defaults(func=add_task)
+
+    list_parser = subparsers.add_parser("list", help="Show tasks")
+    list_parser.add_argument(
+        "--status",
+        choices=("all", "pending", "completed"),
+        default="all",
+        help="Filter tasks by status (default: all)",
+    )
+    list_parser.set_defaults(func=list_tasks)
+
+    complete_parser = subparsers.add_parser(
+        "complete", help="Mark a task as completed"
+    )
+    complete_parser.add_argument("task_id", type=int, help="Task ID")
+    complete_parser.set_defaults(func=complete_task)
+
+    edit_parser = subparsers.add_parser("edit", help="Edit a task")
+    edit_parser.add_argument("task_id", type=int, help="Task ID")
+    edit_parser.add_argument("--title", help="New task title")
+    edit_parser.add_argument("--description", help="New task description")
+    edit_parser.set_defaults(func=edit_task)
+
+    delete_parser = subparsers.add_parser("delete", help="Delete a task")
+    delete_parser.add_argument("task_id", type=int, help="Task ID")
+    delete_parser.set_defaults(func=delete_task)
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
